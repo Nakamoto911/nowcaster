@@ -15,81 +15,111 @@ class RegimeModel:
         self.final_labels = ["Recovery", "Expansion", "Stagflation", "Contraction"]
 
     def fit(self, data):
-        # Fit on Pre-2020 data
-        train_data = data[data.index < '2020-01-01']
-        
-        # 1. PCA
-        self.pca.fit(train_data)
-        
-        # Check Loadings for Sign Flipping
-        components = pd.DataFrame(self.pca.components_, columns=data.columns, index=['PC1', 'PC2'])
-        
-        # PC1: Growth (should be + correlated with INDPRO)
-        indpro_loading = components.loc['PC1', 'INDPRO'] if 'INDPRO' in components.columns else 0
-        self.pc1_sign = 1 if indpro_loading > 0 else -1
+            # Fit on Pre-2020 data
+            train_data = data[data.index < '2020-01-01']
             
-        # PC2: Inflation (should be + correlated with CPIAUCSL or PCEPI)
-        # Use CPIAUCSL
-        cpi_loading = components.loc['PC2', 'CPIAUCSL'] if 'CPIAUCSL' in components.columns else 0
-        if cpi_loading == 0 and 'PCEPI' in components.columns:
-             cpi_loading = components.loc['PC2', 'PCEPI']
-             
-        self.pc2_sign = 1 if cpi_loading > 0 else -1
+            # --- 1. PCA Fitting ---
+            self.pca.fit(train_data)
             
-        print(f"PC1 (Growth) Sign: {self.pc1_sign}")
-        print(f"PC2 (Inflation) Sign: {self.pc2_sign}")
+            # Check Loadings for Sign Flipping
+            components = pd.DataFrame(self.pca.components_, columns=data.columns, index=['PC1', 'PC2'])
+            
+            # PC1: Growth
+            indpro_loading = components.loc['PC1', 'INDPRO'] if 'INDPRO' in components.columns else 0
+            self.pc1_sign = 1 if indpro_loading > 0 else -1
+                
+            # PC2: Inflation
+            cpi_loading = components.loc['PC2', 'CPIAUCSL'] if 'CPIAUCSL' in components.columns else 0
+            if cpi_loading == 0 and 'PCEPI' in components.columns:
+                cpi_loading = components.loc['PC2', 'PCEPI']
+            self.pc2_sign = 1 if cpi_loading > 0 else -1
+                
+            print(f"PC1 (Growth) Sign: {self.pc1_sign}")
+            print(f"PC2 (Inflation) Sign: {self.pc2_sign}")
 
-        # Transform training data for GMM
-        pca_train = self.pca.transform(train_data)
-        pca_train[:, 0] *= self.pc1_sign
-        pca_train[:, 1] *= self.pc2_sign
-        
-        # 2. GMM
-        # Initialize GMM centroids for 5 clusters
-        # 0: Expansion (Q1)
-        # 1: Stagflation (Q2)
-        # 2: Mild Contraction (Q3 Mean)
-        # 3: Deep Contraction (Q3 Min/Tail)
-        # 4: Recovery (Q4)
-        
-        q1_mask = (pca_train[:, 0] > 0) & (pca_train[:, 1] > 0) # Expansion
-        q2_mask = (pca_train[:, 0] < 0) & (pca_train[:, 1] > 0) # Stagflation
-        q3_mask = (pca_train[:, 0] < 0) & (pca_train[:, 1] < 0) # Contraction
-        q4_mask = (pca_train[:, 0] > 0) & (pca_train[:, 1] < 0) # Recovery
-        
-        # Centroids
-        c_exp = pca_train[q1_mask].mean(axis=0) if q1_mask.any() else np.array([1.0, 1.0])
-        c_stag = pca_train[q2_mask].mean(axis=0) if q2_mask.any() else np.array([-1.0, 1.0])
-        c_rec = pca_train[q4_mask].mean(axis=0) if q4_mask.any() else np.array([1.0, -1.0])
-        
-        # Split Contraction
-        if q3_mask.any():
-            con_points = pca_train[q3_mask]
-            c_con_mild = con_points.mean(axis=0)
-            # Use point with min PC1 (Deepest recession) as Deep Contraction
-            idx_min = con_points[:, 0].argmin()
-            c_con_deep = con_points[idx_min]
-        else:
-            c_con_mild = np.array([-1.0, -1.0])
-            c_con_deep = np.array([-3.0, -3.0])
-        
-        self.gmm.means_init = np.array([c_exp, c_stag, c_con_mild, c_con_deep, c_rec])
-        self.gmm.n_init = 1 
-        self.gmm.init_params = 'kmeans'
-        
-        self.gmm.fit(pca_train)
-        
-        # 3. Semantic Mapping (Hardcoded by Initialization Order)
-        self.regime_map = {
-            0: "Expansion",
-            1: "Stagflation",
-            2: "Contraction",
-            3: "Contraction",
-            4: "Recovery"
-        }
+            # Transform training data
+            pca_train = self.pca.transform(train_data)
+            pca_train[:, 0] *= self.pc1_sign
+            pca_train[:, 1] *= self.pc2_sign
             
-        print(f"Regime Map: {self.regime_map}")
+            # --- 2. GMM Fitting ---
+            self.gmm.means_init = None 
+            self.gmm.n_init = 10 
+            self.gmm.init_params = 'kmeans'
+            self.gmm.fit(pca_train)
+            
+            # --- 3. Robust Semantic Mapping (Draft Logic) ---
+            self.regime_map = {}
+            means = self.gmm.means_
+            
+            # Initial split: Right side (Growth) vs Left side (Downturn)
+            high_growth_indices = []
+            low_growth_indices = []
+            
+            for i in range(self.gmm.n_components):
+                if means[i, 0] > -0.1: 
+                    high_growth_indices.append(i)
+                else:
+                    low_growth_indices.append(i)
 
+            # RECOVERY RESCUE: 
+            # If we have 0 or 1 growth cluster, we can't form both Recovery and Expansion.
+            # We must "draft" the best cluster from low_growth (highest PC1) to be Recovery.
+            if len(high_growth_indices) < 2 and len(low_growth_indices) > 0:
+                # Find the cluster in low_growth with the highest Growth Score (closest to positive)
+                best_candidate = sorted(low_growth_indices, key=lambda x: means[x, 0])[-1]
+                
+                # Move it to high_growth
+                low_growth_indices.remove(best_candidate)
+                high_growth_indices.append(best_candidate)
+                print(f"Drafted Cluster {best_candidate} into Growth Group to ensure Recovery exists.")
+                    
+            # --- Assign Growth Regimes (Recovery / Expansion) ---
+            if high_growth_indices:
+                # Sort by Inflation (PC2)
+                sorted_growth = sorted(high_growth_indices, key=lambda x: means[x, 1])
+                
+                # Lowest Inflation -> Recovery
+                self.regime_map[sorted_growth[0]] = "Recovery"
+                
+                # Highest Inflation -> Expansion
+                self.regime_map[sorted_growth[-1]] = "Expansion"
+                
+                # Handle Middle Clusters (if any exist between Rec and Exp)
+                if len(sorted_growth) > 2:
+                    for mid_idx in sorted_growth[1:-1]:
+                        if means[mid_idx, 1] > 0:
+                            self.regime_map[mid_idx] = "Expansion"
+                        else:
+                            self.regime_map[mid_idx] = "Recovery"
+
+            # --- Assign Downturn Regimes (Stagflation / Contraction) ---
+            if low_growth_indices:
+                # Sort by Inflation (PC2)
+                sorted_downturn = sorted(low_growth_indices, key=lambda x: means[x, 1])
+                
+                # Check the highest inflation candidate
+                stag_candidate = sorted_downturn[-1]
+                lowest_candidate = sorted_downturn[0]
+                
+                # Logic: Is the "Stag" candidate actually inflationary?
+                # It must be notably higher than the deep contraction, OR simply positive.
+                is_high_inflation = means[stag_candidate, 1] > 0
+                is_much_higher = means[stag_candidate, 1] > means[lowest_candidate, 1] + 1.0
+                
+                if is_high_inflation or is_much_higher:
+                    self.regime_map[stag_candidate] = "Stagflation"
+                    remaining = sorted_downturn[:-1]
+                else:
+                    # If no inflation pressure, everything is Contraction
+                    remaining = sorted_downturn
+
+                for idx in remaining:
+                    self.regime_map[idx] = "Contraction"
+
+            print(f"Cluster Centroids: {means}")
+            print(f"Dynamic Regime Map: {self.regime_map}")
+    
     def transform(self, data):
         # PCA
         pca_data = self.pca.transform(data)
