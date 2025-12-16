@@ -151,6 +151,55 @@ try:
 
         fig_stats = plot_regime_heatmap(df_viz, pca_df['Regime'], desc_map)
         st.plotly_chart(fig_stats, width="stretch")
+
+        st.markdown("#### Detailed Statistics- Original Values (Transformed)")
+        
+        def calculate_regime_stats(df, regime_col, key_stats):
+            """
+            Calculate Mean and Quintiles for key stats per regime.
+            """
+            data = df[key_stats].copy()
+            data['Regime'] = regime_col
+            
+            stats_list = []
+            
+            # Quartiles to calculate
+            quantiles = [0.25, 0.5, 0.75]
+            q_names = ['25%', 'Median', '75%']
+            
+            for regime, group in data.groupby('Regime'):
+                if regime not in ['Expansion', 'Recovery', 'Stagflation', 'Contraction']:
+                    continue
+                    
+                for col in key_stats:
+                    series = group[col]
+                    row = {
+                        'Regime': regime,
+                        'Variable': col,
+                        'Mean': series.mean(),
+                    }
+                    # Add Quantiles
+                    qs = series.quantile(quantiles)
+                    for q_val, q_name in zip(qs, q_names):
+                        row[q_name] = q_val
+                        
+                    stats_list.append(row)
+            
+            res_df = pd.DataFrame(stats_list)
+            # Sort by Regime Order
+            regime_order = {'Contraction': 0, 'Stagflation': 1, 'Recovery': 2, 'Expansion': 3}
+            res_df['RegimeVal'] = res_df['Regime'].map(regime_order)
+            res_df = res_df.sort_values(['RegimeVal', 'Variable']).drop(columns=['RegimeVal'])
+            
+            return res_df.set_index(['Regime', 'Variable'])
+
+        # Variables to show (same as heatmap)
+        vars_to_show = ['RPI', 'UNRATE', 'UMCSENTx', 'FEDFUNDS', 'CPIAUCSL', 'S&P 500']
+        # Filter existing
+        vars_to_show = [v for v in vars_to_show if v in df_viz.columns]
+        
+        stats_df = calculate_regime_stats(df_viz, pca_df['Regime'], vars_to_show)
+        st.dataframe(stats_df, width=1200)
     
     with tab_diag:
         st.header("Model Diagnostics")
