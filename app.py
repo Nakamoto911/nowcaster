@@ -78,46 +78,24 @@ try:
     tab_main, tab_diag = st.tabs(["Main Dashboard", "Model Diagnostics"])
 
     with tab_main:
-        # --- Metrics Section ---
-        st.header("5. Acceptance Criteria Metrics")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Variance Explained (PCA)")
-            explained_variance = model.pca.explained_variance_ratio_
-            total_var = np.sum(explained_variance) * 100
-            
-            st.metric(label="Total Variance (PC1 + PC2)", value=f"{total_var:.2f}%")
-            if total_var >= 40:
-                st.success("PASSED (>40%)")
-            else:
-                st.error("FAILED (<40%)")
-                
-            st.write(f"PC1 (Growth): {explained_variance[0]*100:.2f}%")
-            st.write(f"PC2 (Inflation): {explained_variance[1]*100:.2f}%")
 
-        with col2:
-            st.subheader("Historical Alignment Checks")
-            test_results = check_nber_alignment(regime_probs)
-            st.dataframe(test_results, hide_index=True)
 
         # --- Visualizations ---
-        st.header("6. Visualization Requirements")
+        #st.header("6. Visualization Requirements")
         
-        st.subheader("6.1 Regime Probability Time Series")
+        st.subheader("Regime Probability Time Series")
         fig_ts = plot_regime_probabilities(regime_probs)
         st.plotly_chart(fig_ts, width="stretch")
 
-        st.subheader("6.2 Economic Health Index")
+        st.subheader("Economic Health Index")
         fig_index = plot_economic_health_index(regime_probs)
         st.plotly_chart(fig_index, width="stretch")
         
-        st.subheader("6.3 PCA Phase Diagram")
+        st.subheader("PCA Phase Diagram")
         fig_phase = plot_pca_phase_diagram(pca_df)
         st.plotly_chart(fig_phase, width="stretch")
 
-        st.subheader("6.4 Regime Statistics (Normalized)")
+        st.subheader("Regime Statistics (Normalized)")
         # Load descriptions for tooltip
         try:
             desc_df = pd.read_csv('FRED-MD_updated_appendix.csv', encoding='latin-1')
@@ -204,8 +182,34 @@ try:
     with tab_diag:
         st.header("Model Diagnostics")
         
-        # 1. Inspect GMM Centroids
-        st.subheader("1. GMM Cluster Centroids")
+        # 1. Acceptance Criteria Metrics
+        st.subheader("Acceptance Criteria Metrics")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Variance Explained (PCA)**")
+            explained_variance = model.pca.explained_variance_ratio_
+            total_var = np.sum(explained_variance) * 100
+            
+            st.metric(label="Total Variance (PC1 + PC2)", value=f"{total_var:.2f}%")
+            if total_var >= 40:
+                st.success("PASSED (>40%)")
+            else:
+                st.error("FAILED (<40%)")
+                
+            st.write(f"PC1 (Growth): {explained_variance[0]*100:.2f}%")
+            st.write(f"PC2 (Inflation): {explained_variance[1]*100:.2f}%")
+
+        with col2:
+            st.markdown("**Historical Alignment Checks**")
+            test_results = check_nber_alignment(regime_probs)
+            st.dataframe(test_results, hide_index=True)
+
+        st.divider()
+
+        # 2. Inspect GMM Centroids
+        st.subheader("GMM Cluster Centroids")
         means = model.gmm.means_
         # To make sense of means, we need to know which cluster ID maps to what
         # model.regime_map maps ID -> Label
@@ -224,8 +228,8 @@ try:
         st.dataframe(pd.DataFrame(centroid_data))
         st.info("Expected: Expansion (+,+), Stagflation (-,+), Contraction (-,-), Recovery (+,-)")
 
-        # 2. Inspect PCA Loadings
-        st.subheader("2. PCA Loadings (Top Drivers)")
+        # 3. PCA Loadings (Top Drivers)
+        st.subheader("3. PCA Loadings (Top Drivers)")
         
         # Get components (2, n_features)
         components = model.pca.components_
@@ -257,8 +261,8 @@ try:
             st.markdown("**Top Negative**")
             st.dataframe(obs_df['PC2_Loading'].sort_values(ascending=True).head(10))
 
-        # 3. Data Hygiene
-        st.subheader("3. Processed Data Inspection")
+        # 4. Data Hygiene
+        st.subheader("4. Processed Data Inspection")
         st.markdown("Checking normalization of key indicators. values should be centered around 0.")
         
         key_vars = ['INDPRO', 'CPIAUCSL', 'UNRATE', 'PAYEMS']
