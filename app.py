@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 from src.data import DataLoader
 from src.models import RegimeModel
-from src.plots import plot_regime_probabilities, plot_pca_phase_diagram, plot_multi_series_with_recessions, plot_economic_health_index, plot_regime_heatmap
+from src.plots import plot_regime_probabilities, plot_pca_phase_diagram, plot_multi_series_with_recessions, plot_economic_health_index, plot_regime_heatmap, plot_regime_probability_subplots, plot_pca_components
+
 
 st.set_page_config(layout="wide", page_title="US Economic Regime Nowcaster")
 
@@ -75,7 +76,7 @@ try:
         regime_probs, pca_df = model.transform(df_processed)
     
     # Create Tabs
-    tab_main, tab_diag = st.tabs(["Main Dashboard", "Model Diagnostics"])
+    tab_main, tab_diag = st.tabs(["Dashboard", "Diagnostics"])
 
     with tab_main:
 
@@ -86,6 +87,10 @@ try:
         st.subheader("Regime Probability Time Series")
         fig_ts = plot_regime_probabilities(regime_probs)
         st.plotly_chart(fig_ts, width="stretch")
+
+        st.subheader("Regime Probabilities (Detailed)")
+        fig_subplots = plot_regime_probability_subplots(regime_probs)
+        st.plotly_chart(fig_subplots, width="stretch")
 
         st.subheader("Economic Health Index")
         fig_index = plot_economic_health_index(regime_probs)
@@ -206,6 +211,13 @@ try:
             st.markdown("**Historical Alignment Checks**")
             test_results = check_nber_alignment(regime_probs)
             st.dataframe(test_results, hide_index=True)
+
+        st.divider()
+
+        # New: PCA Components Time Series
+        st.subheader("Principal Components Time Series")
+        fig_pca = plot_pca_components(pca_df)
+        st.plotly_chart(fig_pca, width="stretch")
 
         st.divider()
 

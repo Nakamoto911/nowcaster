@@ -471,4 +471,157 @@ def plot_regime_heatmap(df, regime_col, description_map=None):
         xaxis=dict(side="bottom")
     )
     
+
+    return fig
+
+def plot_regime_probability_subplots(probs_df):
+    """
+    Vertically stacked area charts (subplots) for each Regime.
+    Shows the probability of each regime over time.
+    """
+    regimes = ['Expansion', 'Recovery', 'Stagflation', 'Contraction']
+    # Filter to only existing columns
+    cols = [c for c in regimes if c in probs_df.columns]
+    
+    n = len(cols)
+    if n == 0:
+        return go.Figure()
+        
+    fig = make_subplots(
+        rows=n, 
+        cols=1, 
+        shared_xaxes=True, 
+        vertical_spacing=0.05,
+        subplot_titles=cols
+    )
+    
+    # Add Traces
+    for i, regime in enumerate(cols):
+        row_idx = i + 1
+        color = REGIME_COLORS.get(regime, 'grey')
+        
+        # Area chart (filled line)
+        fig.add_trace(go.Scatter(
+            x=probs_df.index,
+            y=probs_df[regime],
+            mode='lines',
+            name=regime,
+            fill='tozeroy',
+            line=dict(color=color, width=1.5),
+            showlegend=False,
+            hovertemplate=f"Date: %{{x|%Y-%m}}<br>Prob: %{{y:.1%}}<extra>{regime}</extra>"
+        ), row=row_idx, col=1)
+        
+        # Add NBER Recession Bands per subplot
+        # We use a trick: add shapes to layout with specific xref/yref relative to the domain of the subplot?
+        # Or simpler: Add V-rects to the specific X-axis of the subplot.
+        # But 'make_subplots' with shared_xaxes=True usually synchronizes the x-axis range, but they are technically different axes (x, x2, x3...).
+        
+        # To strictly add shapes to each subplot correctly in Plotly without complex axis math:
+        # Use 'add_vrect' (Plotly 5.0+). Does src/plots.py support 5.0+? Assuming yes (standard modern stack).
+        # However, `go.Figure` shapes list is also fine.
+        # Let's try adding shapes via layout but we need to target specific y-axes?
+        # Actually easier: Just use `fig.add_vrect` for each recession period.
+        
+        pass 
+        
+    # Global Recession Bands (Apply to all X axes?)
+    # If shared_xaxes=True, adding to 'x' might only appear on the bottom? 
+    # Or we can add to the layout with `xref='paper'` and it spans all?
+    # Yes, xref='x' and yref='paper' spans the whole height (all rows) if x-axes are linked.
+    # Let's verify existing logic in `plot_multi_series_with_recessions`:
+    # It uses: xref="x", yref="paper", y0=0, y1=1. This creates a vertical band across ALL subplots if they share the x-axis domain.
+    
+    shapes = []
+    for start, end in NBER_RECESSIONS:
+        if pd.Timestamp(start) <= probs_df.index.max() and pd.Timestamp(end) >= probs_df.index.min():
+            shapes.append(dict(
+                type="rect",
+                # If shared_xaxes=True, 'x' usually refers to the bottom axis, but the plot area covers all?
+                # Actually, if we use yref="paper", it covers the whole figure height (0 to 1).
+                # So we just need to ensure the x-coordinates are correct.
+                xref="x", 
+                yref="paper",
+                x0=start,
+                y0=0,
+                x1=end,
+                y1=1,
+                fillcolor="rgba(128, 128, 128, 0.3)",
+                layer="below",
+                line_width=0,
+            ))
+            
+    fig.update_layout(
+        title="Regime Probability History (Detailed)",
+        shapes=shapes,
+        height=150 * n,
+        margin=dict(l=20, r=20, t=50, b=20),
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    
+    # Ensure Y-axis is fixed 0-1
+    fig.update_yaxes(range=[0, 1.1], showgrid=True, gridwidth=1, gridcolor='lightgrey')
+    fig.update_xaxes(showgrid=False)
+    
+    return fig
+
+def plot_pca_components(pca_df):
+    """
+    Subplots for PC1 (Growth) and PC2 (Inflation) with NBER Recessions.
+    """
+    fig = make_subplots(
+        rows=2, 
+        cols=1, 
+        shared_xaxes=True, 
+        vertical_spacing=0.1,
+        subplot_titles=("PC1: Growth", "PC2: Inflation")
+    )
+    
+    # PC1 Trace
+    fig.add_trace(go.Scatter(
+        x=pca_df.index,
+        y=pca_df['Growth'],
+        mode='lines',
+        name='Growth (PC1)',
+        line=dict(color='blue', width=1.5),
+        showlegend=False
+    ), row=1, col=1)
+    
+    # PC2 Trace
+    fig.add_trace(go.Scatter(
+        x=pca_df.index,
+        y=pca_df['Inflation'],
+        mode='lines',
+        name='Inflation (PC2)',
+        line=dict(color='red', width=1.5),
+        showlegend=False
+    ), row=2, col=1)
+    
+    # Add NBER Recession Bands
+    shapes = []
+    for start, end in NBER_RECESSIONS:
+        if pd.Timestamp(start) <= pca_df.index.max() and pd.Timestamp(end) >= pca_df.index.min():
+            shapes.append(dict(
+                type="rect",
+                xref="x", 
+                yref="paper",
+                x0=start,
+                y0=0,
+                x1=end,
+                y1=1,
+                fillcolor="rgba(128, 128, 128, 0.3)",
+                layer="below",
+                line_width=0,
+            ))
+            
+    fig.update_layout(
+        title="Principal Components (Time Series)",
+        shapes=shapes,
+        height=500,
+        margin=dict(l=20, r=20, t=50, b=20),
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    
     return fig
