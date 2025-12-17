@@ -10,6 +10,13 @@ class DataLoader:
         self.appendix_df = None
         self.df = None
         self.scaler = StandardScaler()
+        
+        # Metadata Tracking
+        self.excluded_series = {} # {name: reason}
+        self.included_series = {} # {group: [cols]}
+        self.excluded_months = []
+        self.train_range = (None, None)
+        self.data_range = (None, None)
 
     def load_data(self):
         # Load Appendix with latin1 encoding to avoid Unicode errors
@@ -44,8 +51,13 @@ class DataLoader:
         cols_to_keep = []
         for col in self.raw_df.columns:
             if col in series_to_group:
-                if series_to_group[col] in valid_groups:
+                group_id = series_to_group[col]
+                if group_id in valid_groups:
                     cols_to_keep.append(col)
+                else:
+                    self.excluded_series[col] = f"Group {group_id} (Excluded)"
+            else:
+                self.excluded_series[col] = "Unknown Group"
         
         self.df = self.raw_df[cols_to_keep].astype(float)
         return self
@@ -60,6 +72,8 @@ class DataLoader:
             # Actually, raw data should be present.
             if not pd.isna(self.df.loc[start_date, col]):
                 valid_cols.append(col)
+            else:
+                self.excluded_series[col] = "Missing History (Pre-1960)"
         
         self.df = self.df[valid_cols]
         self.df = self.df[self.df.index >= start_date]
@@ -170,10 +184,35 @@ class DataLoader:
 
     def run_pipeline(self):
         self.load_data()
+        
+        # Track initial dates
+        initial_dates = set(self.raw_df.index)
+        
         self.filter_groups()
         self.clean_data()
         self.transform_data()
         self.winsorize()
         self.smooth()
         self.normalize()
+        
+        # Final Metadata
+        final_dates = set(self.df.index)
+        self.excluded_months = sorted(list(initial_dates - final_dates))
+        
+        if not self.df.empty:
+            self.data_range = (self.df.index.min(), self.df.index.max())
+            # Train range is everything before 2020
+            train_mask = self.df.index < '2020-01-01'
+            if train_mask.any():
+                self.train_range = (self.df[train_mask].index.min(), self.df[train_mask].index.max())
+        
+        # Populate Included Series (Final Check)
+        series_to_group = dict(zip(self.appendix_df['fred'], self.appendix_df['group']))
+        for col in self.df.columns:
+            if col in series_to_group:
+                grp_id = series_to_group[col]
+                if grp_id not in self.included_series:
+                    self.included_series[grp_id] = []
+                self.included_series[grp_id].append(col)
+        
         return self.df

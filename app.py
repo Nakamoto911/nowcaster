@@ -10,13 +10,13 @@ st.set_page_config(layout="wide", page_title="US Economic Regime Nowcaster")
 st.title("US Economic Regime Nowcaster")
 
 @st.cache_data
-def load_and_process_data():
+def load_and_process_data_v4():
     loader = DataLoader(
         data_path='2025-11-MD.csv',
         appendix_path='FRED-MD_updated_appendix.csv'
     )
     df = loader.run_pipeline()
-    return df
+    return df, loader
 
 @st.cache_resource
 def train_model(df):
@@ -66,9 +66,9 @@ def check_nber_alignment(probs_df):
 
 try:
     with st.spinner("Loading and Processing Data..."):
-        df_processed = load_and_process_data()
+        df_processed, loader = load_and_process_data_v4()
     
-    st.success(f"Data Loaded: {df_processed.shape[0]} months, {df_processed.shape[1]} series")
+    # st.success(f"Data Loaded: {df_processed.shape[0]} months, {df_processed.shape[1]} series")
     
     with st.spinner("Fitting Model..."):
         model = train_model(df_processed)
@@ -92,7 +92,7 @@ try:
         st.plotly_chart(fig_index, width="stretch")
         
         st.subheader("PCA Phase Diagram")
-        fig_phase = plot_pca_phase_diagram(pca_df)
+        fig_phase = plot_pca_phase_diagram(pca_df, regime_probs)
         st.plotly_chart(fig_phase, width="stretch")
 
         st.subheader("Regime Statistics (Normalized)")
@@ -107,7 +107,8 @@ try:
             
         # 1. Get auxiliary variables that might be missing from PCA model data
         # (e.g., S&P 500, FEDFUNDS were excluded from PCA but needed for Viz)
-        aux_vars = ['S&P 500', 'FEDFUNDS', 'UMCSENTx']
+        needed_vars = ['S&P 500', 'FEDFUNDS', 'UMCSENTx']
+        aux_vars = [v for v in needed_vars if v not in df_processed.columns]
         
         # We need the loader instance. 'load_and_process_data' is a cache wrapper that assumes loader is internal or recreated.
         # But 'load_and_process_data' currently returns just 'df'. Hiding the loader.
@@ -119,9 +120,9 @@ try:
         
         # Hack for now: Re-create loader to fetch aux vars.
         # (In production, we'd refactor logic to avoid double read, but this is fast enough).
-        loader = DataLoader('2025-11-MD.csv', 'FRED-MD_updated_appendix.csv')
-        loader.load_data() # Loads raw_df
-        aux_df = loader.get_feature_series(aux_vars)
+        aux_loader = DataLoader('2025-11-MD.csv', 'FRED-MD_updated_appendix.csv')
+        aux_loader.load_data() # Loads raw_df
+        aux_df = aux_loader.get_feature_series(aux_vars)
         
         # Join with processed data for visualization
         # Use left join on df_processed to align with valid model timeline
@@ -273,6 +274,55 @@ try:
             st.plotly_chart(fig_data, width="stretch")
         else:
             st.warning("Key variables (INDPRO, CPIAUCSL...) not found in processed data!")
+
+        # 5. Data Information (Detailed)
+        st.subheader("5. Data Information")
+        
+        # Ranges
+        train_start = loader.train_range[0].strftime('%Y-%m') if loader.train_range[0] else "N/A"
+        train_end = loader.train_range[1].strftime('%Y-%m') if loader.train_range[1] else "N/A"
+        data_start = loader.data_range[0].strftime('%Y-%m') if loader.data_range[0] else "N/A"
+        data_end = loader.data_range[1].strftime('%Y-%m') if loader.data_range[1] else "N/A"
+        
+        st.markdown(f"**Training Period:** {train_start} to {train_end} (Pre-2020)")
+        st.markdown(f"**Full Data Period:** {data_start} to {data_end}")
+        st.markdown(f"**Series Count:** {df_processed.shape[1]} (Included) / {len(loader.excluded_series) + df_processed.shape[1]} (Total)")
+
+        # Expanders
+        with st.expander("Excluded Months (Transform/Cleaning Drop)"):
+            if loader.excluded_months:
+                st.write(", ".join([d.strftime('%Y-%m') for d in loader.excluded_months]))
+                st.info(f"Total Dropped: {len(loader.excluded_months)}")
+            else:
+                st.success("No months dropped.")
+
+        with st.expander("Excluded Series (Reason)"):
+            if loader.excluded_series:
+                excl_df = pd.DataFrame(list(loader.excluded_series.items()), columns=['Series', 'Reason'])
+                st.dataframe(excl_df)
+            else:
+                st.success("No series excluded.")
+
+        with st.expander("Included Series per Group"):
+            # We need description map
+            try:
+                desc_df_info = pd.read_csv('FRED-MD_updated_appendix.csv', encoding='latin-1')
+                desc_map_info = desc_df_info.set_index('fred')['description'].to_dict()
+            except:
+                desc_map_info = {}
+            
+            for grp_id, cols in loader.included_series.items():
+                st.markdown(f"**Group {grp_id}** ({len(cols)} series)")
+                
+                # Create mini dataframe for cleaner display
+                grp_data = []
+                for c in cols:
+                    grp_data.append({
+                        "Series ID": c,
+                        "Description": desc_map_info.get(c, "N/A")
+                    })
+                
+                st.dataframe(pd.DataFrame(grp_data), hide_index=True)
 
 except Exception as e:
     st.error(f"An error occurred: {e}")

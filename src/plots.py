@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 from plotly.subplots import make_subplots
 
 # ... (Existing NBER_RECESSIONS) ...
@@ -18,18 +19,22 @@ NBER_RECESSIONS = [
     ('2020-02-01', '2020-04-01')
 ]
 
+
+# Consistent Regime Colors (Source: Economic Health Index)
+REGIME_COLORS = {
+    'Expansion': '#90EE90',   # Light Green
+    'Recovery': '#006400',    # Dark Green
+    'Stagflation': 'orange',  # Orange
+    'Contraction': 'red'      # Red
+}
+
 def plot_regime_probabilities(probs_df):
     """
     Multi-line Time Series with Scatter overlay.
     """
     fig = go.Figure()
     
-    colors = {
-        'Expansion': '#90EE90',   # Light Green
-        'Recovery': '#008000',    # Dark Green
-        'Stagflation': '#FF4500', # Orange-Red
-        'Contraction': '#8B0000'  # Dark Red (Worst)
-    }
+    colors = REGIME_COLORS
     
     # 1. Add NBER Recession Bands
     shapes = []
@@ -106,7 +111,7 @@ def plot_regime_probabilities(probs_df):
     
     return fig
 
-def plot_pca_phase_diagram(pca_df):
+def plot_pca_phase_diagram(pca_df, probs_df=None):
     """
     2D Scatter Plot of PC1 (Growth) vs PC2 (Inflation).
     Points colored by assigned Cluster/Regime.
@@ -126,13 +131,46 @@ def plot_pca_phase_diagram(pca_df):
     for regime in pca_df['Regime'].unique():
         subset = pca_df[pca_df['Regime'] == regime]
         
+        # Prepare customdata for tooltip if probs_df is available
+        if probs_df is not None:
+            # Align probs with subset
+            # We need to make sure indices match
+            subset_probs = probs_df.loc[subset.index]
+            
+            # Create a customdata array: [Date, Exp, Rec, Stag, Con]
+            # We'll format the string in the hovertemplate using these values
+            customdata = np.stack((
+                subset.index.strftime('%Y-%m'),
+                subset_probs.get('Expansion', pd.Series(0, index=subset.index)),
+                subset_probs.get('Recovery', pd.Series(0, index=subset.index)),
+                subset_probs.get('Stagflation', pd.Series(0, index=subset.index)),
+                subset_probs.get('Contraction', pd.Series(0, index=subset.index))
+            ), axis=-1)
+            
+            hovertemplate = (
+                "<b>Date: %{customdata[0]}</b><br>" +
+                "Regime: " + regime + "<br><br>" +
+                "Expansion: %{customdata[1]:.2%}<br>" +
+                "Recovery: %{customdata[2]:.2%}<br>" +
+                "Stagflation: %{customdata[3]:.2%}<br>" +
+                "Contraction: %{customdata[4]:.2%}<br>" +
+                "<extra></extra>"
+            )
+        else:
+            customdata = None
+            hovertemplate = "Date: %{text}<br>Regime: " + regime + "<extra></extra>"
+        
+        color = REGIME_COLORS.get(regime, 'grey')
+        
         fig.add_trace(go.Scatter(
             x=subset['Growth'],
             y=subset['Inflation'],
             mode='markers',
             name=regime,
             text=subset.index.strftime('%Y-%m'),
-            marker=dict(size=6, opacity=0.7)
+            customdata=customdata,
+            hovertemplate=hovertemplate,
+            marker=dict(size=6, opacity=0.7, color=color)
         ))
         
     # Add axes lines
@@ -315,10 +353,10 @@ def plot_economic_health_index(probs_df):
     s4[s4 > -0.5] = None
     
     # Plot Traces
-    fig.add_trace(go.Scatter(x=s.index, y=s1, mode='lines', name='Strong Expansion', line=dict(color='#90EE90', width=1.5), showlegend=False)) # LightGreen (Expansion)
-    fig.add_trace(go.Scatter(x=s.index, y=s2, mode='lines', name='Mild Expansion', line=dict(color='#006400', width=1.5), showlegend=False))   # DarkGreen (Recovery)
-    fig.add_trace(go.Scatter(x=s.index, y=s3, mode='lines', name='Mild Contraction', line=dict(color='orange', width=1.5), showlegend=False))  # Orange
-    fig.add_trace(go.Scatter(x=s.index, y=s4, mode='lines', name='Deep Contraction', line=dict(color='red', width=1.5), showlegend=False))     # Red
+    fig.add_trace(go.Scatter(x=s.index, y=s1, mode='lines', name='Strong Expansion', line=dict(color=REGIME_COLORS['Expansion'], width=1.5), showlegend=False)) # LightGreen (Expansion)
+    fig.add_trace(go.Scatter(x=s.index, y=s2, mode='lines', name='Mild Expansion', line=dict(color=REGIME_COLORS['Recovery'], width=1.5), showlegend=False))   # DarkGreen (Recovery)
+    fig.add_trace(go.Scatter(x=s.index, y=s3, mode='lines', name='Mild Contraction', line=dict(color=REGIME_COLORS['Stagflation'], width=1.5), showlegend=False))  # Orange
+    fig.add_trace(go.Scatter(x=s.index, y=s4, mode='lines', name='Deep Contraction', line=dict(color=REGIME_COLORS['Contraction'], width=1.5), showlegend=False))     # Red
     
     # Add NBER Bands
     shapes = []
