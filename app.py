@@ -372,7 +372,8 @@ try:
 
     with tab_series:
         st.header("Series Analysis")
-        st.write("Visualizing raw vs. transformed data for all available series.")
+        scaler_name = loader.scaler.__class__.__name__
+        st.write(f"Visualizing raw, transformed, and normalized data for all available series. Scaler used: **{scaler_name}**")
 
         # Group Names Mapping
         GROUP_NAMES = {
@@ -387,18 +388,15 @@ try:
         }
 
         # Use the loader already loaded in the main execution
-        # We need raw data and transformed data.
-        # df_processed has transformed/normalized data.
-        # We need raw and transformed before normalization if possible, 
-        # but the request asks for "data after t_code transformation".
-        
-        # Let's get raw data from loader.raw_df
         raw_full = loader.raw_df
         
-        # We need t-code transformed data (not necessarily normalized/winsorized)
-        # We can use loader.get_feature_series for this.
+        # 1. Get t-code transformed data
         all_cols = [c for c in raw_full.columns if c != 'sasdate']
         transformed_all = loader.get_feature_series(all_cols)
+        
+        # 2. Get normalized data from df_processed (which has all cleaning applied)
+        # For series not in df_processed, we won't show the normalized line
+        normalized_all = df_processed
         
         # Load appendix for grouping
         try:
@@ -429,19 +427,31 @@ try:
             for col in grouped_cols[grp_id]:
                 desc = series_to_desc.get(col, col)
                 with st.expander(f"{col}: {desc}"):
-                    # Plot raw vs transformed
-                    # raw_full[col] might have NaNs or strings? DataLoader handles conversion.
                     try:
                         r_series = raw_full[col].astype(float)
                         t_series = transformed_all[col]
                         
+                        # Get formula
+                        t_code = loader.t_codes.get(col, 1)
+                        formula = loader.TCODE_FORMULAS.get(int(t_code), "Unknown")
+                        
+                        # Get normalized series if available
+                        n_series = normalized_all[col] if col in normalized_all.columns else pd.Series(dtype=float)
+                        
                         fig = plot_series_comparison(
                             r_series, 
                             t_series, 
+                            n_series,
                             title=f"{col} Analysis", 
-                            description=desc
+                            description=desc,
+                            formula=formula,
+                            scaler_name=scaler_name
                         )
                         st.plotly_chart(fig, width="stretch")
+                        
+                        if col not in normalized_all.columns:
+                            st.info(f"Note: {col} was excluded from the normalization pipeline (likely due to missing history or group filtering).")
+                            
                     except Exception as e:
                         st.error(f"Error plotting {col}: {e}")
 

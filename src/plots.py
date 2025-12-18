@@ -668,16 +668,20 @@ def plot_regime_timeline(blocks_df):
     
     return fig
 
-def plot_series_comparison(raw_series, transformed_series, title, description):
+def plot_series_comparison(raw_series, transformed_series, normalized_series, title, description, formula, scaler_name="StandardScaler"):
     """
-    Plots raw and transformed data in two subplots.
+    Plots raw, transformed, and normalized data in three subplots.
     """
     fig = make_subplots(
-        rows=2, 
+        rows=3, 
         cols=1, 
         shared_xaxes=True, 
-        vertical_spacing=0.1,
-        subplot_titles=(f"Raw: {description}", "Transformed (Stationary)")
+        vertical_spacing=0.08,
+        subplot_titles=(
+            f"Raw: {description}", 
+            f"Transformed: {formula}", 
+            f"Normalized ({scaler_name})"
+        )
     )
     
     # Raw Trace
@@ -699,11 +703,33 @@ def plot_series_comparison(raw_series, transformed_series, title, description):
         line=dict(color='red', width=1.5),
         showlegend=False
     ), row=2, col=1)
+
+    # Normalized Trace
+    fig.add_trace(go.Scatter(
+        x=normalized_series.index,
+        y=normalized_series,
+        mode='lines',
+        name='Normalized',
+        line=dict(color='green', width=1.5),
+        showlegend=False
+    ), row=3, col=1)
+
+    # Add +/- 1 and +/- 2 STD lines to row 3
+    # We'll use gray dashed lines
+    for std in [1, -1, 2, -2]:
+        fig.add_hline(
+            y=std, 
+            line_dash="dot", 
+            line_color="gray", 
+            line_width=1,
+            row=3, 
+            col=1
+        )
     
     # Add NBER Recession Bands
     shapes = []
-    # Use the union of both indices to find the date range
-    total_index = raw_series.index.union(transformed_series.index)
+    # Use the union of indices to find the date range
+    total_index = raw_series.index.union(transformed_series.index).union(normalized_series.index)
     if not total_index.empty:
         min_date = total_index.min()
         max_date = total_index.max()
@@ -726,7 +752,7 @@ def plot_series_comparison(raw_series, transformed_series, title, description):
     fig.update_layout(
         title=title,
         shapes=shapes,
-        height=400,
+        height=600,
         margin=dict(l=20, r=20, t=50, b=20),
         template="plotly_white",
         hovermode="x unified"

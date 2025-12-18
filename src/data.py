@@ -3,6 +3,16 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 class DataLoader:
+    TCODE_FORMULAS = {
+        1: "x(t)",
+        2: "x(t) - x(t-1)",
+        3: "(x(t) - x(t-1)) - (x(t-1) - x(t-2))",
+        4: "log(x(t))",
+        5: "log(x(t)) - log(x(t-1))",
+        6: "(log(x(t)) - log(x(t-1))) - (log(x(t-1)) - log(x(t-2)))",
+        7: "(x(t)/x(t-1) - 1) - (x(t-1)/x(t-2) - 1)"
+    }
+
     def __init__(self, data_path, appendix_path):
         self.data_path = data_path
         self.appendix_path = appendix_path
