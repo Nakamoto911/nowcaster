@@ -1,0 +1,26 @@
+Start Date,End Date,Regime,Notes
+1960-04-01,1961-02-01,Contraction,NBER Recession
+1961-02-01,1961-12-01,Recovery,Post-recession recovery
+1961-12-01,1969-12-01,Expansion,The 1960s Boom
+1969-12-01,1970-11-01,Contraction,NBER Recession
+1970-11-01,1973-11-01,Recovery,Recovery leading into oil crisis
+1973-11-01,1975-03-01,Contraction,Oil Crisis Recession
+1975-03-01,1979-12-01,Stagflation,High Inflation era
+1980-01-01,1980-07-01,Contraction,NBER Recession
+1980-07-01,1981-07-01,Stagflation,Brief gap with very high inflation
+1981-07-01,1982-11-01,Contraction,Volcker Recession
+1982-11-01,1983-10-01,Recovery,Initial recovery phase
+1983-10-01,1990-07-01,Expansion,The 1980s Boom
+1990-07-01,1991-03-01,Contraction,Gulf War Recession
+1991-03-01,1992-06-01,Recovery,Jobless Recovery
+1992-06-01,2001-03-01,Expansion,Dot Com Boom
+2001-03-01,2001-11-01,Contraction,Dot Com Bust / 9/11
+2001-11-01,2002-11-01,Recovery,Initial recovery
+2002-11-01,2007-12-01,Expansion,Housing Boom
+2007-12-01,2009-06-01,Contraction,Great Recession
+2009-06-01,2011-09-01,Recovery,Slow recovery to pre-crisis GDP peak
+2011-09-01,2020-02-01,Expansion,Long 2010s Expansion
+2020-02-01,2020-04-01,Contraction,COVID-19 Recession
+2020-04-01,2021-03-01,Recovery,V-shaped recovery
+2021-03-01,2023-12-01,Stagflation,Post-COVID Inflation surge
+2023-12-01,2025-12-01,Expansion,Soft Landing / Growth

@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from src.data import DataLoader
-from src.models import RegimeModel
-from src.plots import plot_regime_probabilities, plot_pca_phase_diagram, plot_multi_series_with_recessions, plot_economic_health_index, plot_regime_heatmap, plot_regime_probability_subplots, plot_pca_components, plot_regime_timeline
+from src.models import RegimeModel, RegimeHMM
+from src.plots import plot_regime_probabilities, plot_pca_phase_diagram, plot_multi_series_with_recessions, plot_economic_health_index, plot_regime_heatmap, plot_regime_probability_subplots, plot_pca_components, plot_regime_timeline, plot_series_comparison
 
 
 st.set_page_config(layout="wide", page_title="US Economic Regime Nowcaster")
@@ -20,9 +20,13 @@ def load_and_process_data_v4():
     return df, loader
 
 @st.cache_resource
-def train_model(df):
-    model = RegimeModel()
-    model.fit(df)
+def train_regime_model(df, inflation_series, model_type="GMM"):
+    if model_type == "HMM (Experimental)":
+        model = RegimeHMM(n_components=6)
+    else:
+        model = RegimeModel()
+        
+    model.fit(df, inflation_series=inflation_series)
     return model
 
 def check_nber_alignment(probs_df):
@@ -66,17 +70,28 @@ def check_nber_alignment(probs_df):
 # --- Main Execution ---
 
 try:
+    # Sidebar
+    st.sidebar.header("Configuration")
+    model_choice = st.sidebar.selectbox("Model Type", ["GMM (Standard)", "HMM (Experimental)"])
+
     with st.spinner("Loading and Processing Data..."):
         df_processed, loader = load_and_process_data_v4()
     
-    # st.success(f"Data Loaded: {df_processed.shape[0]} months, {df_processed.shape[1]} series")
-    
-    with st.spinner("Fitting Model..."):
-        model = train_model(df_processed)
-        regime_probs, pca_df = model.transform(df_processed)
+
+    with st.spinner(f"Fitting {model_choice}..."):
+        # Calculate Inflation Proxy (CPI YoY) for Feature Augmentation
+        # We need raw CPI. Re-load raw data quickly.
+        tmp_loader = DataLoader('2025-11-MD.csv', 'FRED-MD_updated_appendix.csv')
+        tmp_loader.load_data()
+        cpi_raw = tmp_loader.raw_df['CPIAUCSL']
+        inflation_yoy = cpi_raw.pct_change(12) * 100
+        inflation_yoy = inflation_yoy.reindex(df_processed.index).fillna(method='ffill')
+
+        model = train_regime_model(df_processed, inflation_yoy, model_type=model_choice)
+        regime_probs, pca_df = model.transform(df_processed, inflation_series=inflation_yoy)
     
     # Create Tabs
-    tab_main, tab_diag = st.tabs(["Dashboard", "Diagnostics"])
+    tab_main, tab_diag, tab_series = st.tabs(["Dashboard", "Diagnostics", "Series"])
 
     with tab_main:
 
@@ -132,18 +147,10 @@ try:
         needed_vars = ['S&P 500', 'FEDFUNDS', 'UMCSENTx']
         aux_vars = [v for v in needed_vars if v not in df_processed.columns]
         
-        # We need the loader instance. 'load_and_process_data' is a cache wrapper that assumes loader is internal or recreated.
-        # But 'load_and_process_data' currently returns just 'df'. Hiding the loader.
-        # We can re-instantiate loader just to get raw series (cheap) or refactor 'load_and_process_data' to return loader/extra.
-        # Since 'load_and_process_data' is cached, refactoring return type changes cache.
-        # Let's instantiate a new loader for aux vars (lightweight read if cached by OS, or just read CSV).
-        # Better: Do this INSIDE load_and_process_data?
-        # No, 'load_and_process_data' is for the MODEL.
-        
+        # We need the loader instance for aux vars.
         # Hack for now: Re-create loader to fetch aux vars.
-        # (In production, we'd refactor logic to avoid double read, but this is fast enough).
         aux_loader = DataLoader('2025-11-MD.csv', 'FRED-MD_updated_appendix.csv')
-        aux_loader.load_data() # Loads raw_df
+        aux_loader.load_data() 
         aux_df = aux_loader.get_feature_series(aux_vars)
         
         # Join with processed data for visualization
@@ -237,22 +244,32 @@ try:
         st.plotly_chart(fig_pca, width="stretch")
 
         st.divider()
-
-        # 2. Inspect GMM Centroids
-        st.subheader("GMM Cluster Centroids")
-        means = model.gmm.means_
-        # To make sense of means, we need to know which cluster ID maps to what
-        # model.regime_map maps ID -> Label
         
+        # 2. Inspect Cluster Centroids
+        st.subheader("Cluster Centroids")
+        
+        if hasattr(model, 'gmm'):
+            means = model.gmm.means_
+            n_comp = model.gmm.n_components
+            st.caption("Model: GMM")
+        elif hasattr(model, 'model'): # HMM
+             means = model.model.means_
+             n_comp = model.model.n_components
+             st.caption("Model: HMM")
+        else:
+             means = []
+             n_comp = 0
+             
         centroid_data = []
-        for i in range(5):
+        for i in range(n_comp):
             label = model.regime_map.get(i, f"Cluster {i}")
-            # The means are in the transformed PCA space
+            # The means are in the transformed PCA space (plus augmented dims)
+            # Display first 2 dims (Growth, Inflation)
             centroid_data.append({
                 "Cluster ID": i,
                 "Regime Label": label,
                 "Growth (PC1)": means[i, 0],
-                "Inflation (PC2)": means[i, 1]
+                "Inflation (PC2)": means[i, 1] if means.shape[1] > 1 else 0
             })
         
         st.dataframe(pd.DataFrame(centroid_data))
@@ -352,6 +369,81 @@ try:
                     })
                 
                 st.dataframe(pd.DataFrame(grp_data), hide_index=True)
+
+    with tab_series:
+        st.header("Series Analysis")
+        st.write("Visualizing raw vs. transformed data for all available series.")
+
+        # Group Names Mapping
+        GROUP_NAMES = {
+            1: "Output and Income",
+            2: "Labor Market",
+            3: "Housing",
+            4: "Consumption, Orders, and Inventories",
+            5: "Money and Credit",
+            6: "Interest and Exchange Rates",
+            7: "Prices",
+            8: "Stock Market"
+        }
+
+        # Use the loader already loaded in the main execution
+        # We need raw data and transformed data.
+        # df_processed has transformed/normalized data.
+        # We need raw and transformed before normalization if possible, 
+        # but the request asks for "data after t_code transformation".
+        
+        # Let's get raw data from loader.raw_df
+        raw_full = loader.raw_df
+        
+        # We need t-code transformed data (not necessarily normalized/winsorized)
+        # We can use loader.get_feature_series for this.
+        all_cols = [c for c in raw_full.columns if c != 'sasdate']
+        transformed_all = loader.get_feature_series(all_cols)
+        
+        # Load appendix for grouping
+        try:
+            appendix = pd.read_csv('FRED-MD_updated_appendix.csv', encoding='latin1')
+            series_to_group = appendix.set_index('fred')['group'].to_dict()
+            series_to_desc = appendix.set_index('fred')['description'].to_dict()
+        except:
+            series_to_group = {}
+            series_to_desc = {}
+
+        # Group columns
+        grouped_cols = {}
+        for col in all_cols:
+            grp_id = series_to_group.get(col, "Other")
+            if grp_id not in grouped_cols:
+                grouped_cols[grp_id] = []
+            grouped_cols[grp_id].append(col)
+
+        # Iterate by Group ID
+        sorted_groups = sorted([g for g in grouped_cols.keys() if isinstance(g, (int, float))])
+        if "Other" in grouped_cols:
+            sorted_groups.append("Other")
+
+        for grp_id in sorted_groups:
+            grp_name = GROUP_NAMES.get(grp_id, f"Group {grp_id}")
+            st.subheader(f"Group {grp_id}: {grp_name}")
+            
+            for col in grouped_cols[grp_id]:
+                desc = series_to_desc.get(col, col)
+                with st.expander(f"{col}: {desc}"):
+                    # Plot raw vs transformed
+                    # raw_full[col] might have NaNs or strings? DataLoader handles conversion.
+                    try:
+                        r_series = raw_full[col].astype(float)
+                        t_series = transformed_all[col]
+                        
+                        fig = plot_series_comparison(
+                            r_series, 
+                            t_series, 
+                            title=f"{col} Analysis", 
+                            description=desc
+                        )
+                        st.plotly_chart(fig, width="stretch")
+                    except Exception as e:
+                        st.error(f"Error plotting {col}: {e}")
 
 except Exception as e:
     st.error(f"An error occurred: {e}")

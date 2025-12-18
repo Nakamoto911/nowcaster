@@ -1,0 +1,148 @@
+--- Regime Comparison Report ---
+
+=== 1. GMM PREDICTED BLOCKS ===
+         Regime      Start        End
+0     Expansion 1960-05-01 1960-06-01
+1   Contraction 1960-07-01 1960-08-01
+2     Expansion 1960-09-01 1960-09-01
+3   Contraction 1960-10-01 1961-03-01
+4      Recovery 1961-04-01 1961-05-01
+5     Expansion 1961-06-01 1964-12-01
+6   Stagflation 1965-01-01 1965-01-01
+7     Expansion 1965-02-01 1965-03-01
+8   Stagflation 1965-04-01 1965-04-01
+9     Expansion 1965-05-01 1969-02-01
+10  Stagflation 1969-03-01 1969-03-01
+11    Expansion 1969-04-01 1969-12-01
+12  Contraction 1970-01-01 1970-12-01
+13     Recovery 1971-01-01 1971-02-01
+14    Expansion 1971-03-01 1971-12-01
+15  Stagflation 1972-01-01 1972-05-01
+16    Expansion 1972-06-01 1972-09-01
+17  Stagflation 1972-10-01 1974-09-01
+18  Contraction 1974-10-01 1975-07-01
+19  Stagflation 1975-08-01 1976-06-01
+20    Expansion 1976-07-01 1977-01-01
+21  Stagflation 1977-02-01 1980-03-01
+22  Contraction 1980-04-01 1980-10-01
+23  Stagflation 1980-11-01 1981-09-01
+24  Contraction 1981-10-01 1982-12-01
+25     Recovery 1983-01-01 1983-03-01
+26    Expansion 1983-04-01 1983-08-01
+27  Stagflation 1983-09-01 1984-05-01
+28    Expansion 1984-06-01 1989-09-01
+29     Recovery 1989-10-01 1989-10-01
+30    Expansion 1989-11-01 1989-12-01
+31     Recovery 1990-01-01 1990-01-01
+32    Expansion 1990-02-01 1990-07-01
+33  Contraction 1990-08-01 1991-05-01
+34     Recovery 1991-06-01 1991-07-01
+35    Expansion 1991-08-01 1992-02-01
+36     Recovery 1992-03-01 1992-04-01
+37    Expansion 1992-05-01 2001-03-01
+38  Contraction 2001-04-01 2002-02-01
+39     Recovery 2002-03-01 2002-03-01
+40    Expansion 2002-04-01 2003-06-01
+41     Recovery 2003-07-01 2003-07-01
+42    Expansion 2003-08-01 2005-08-01
+43     Recovery 2005-09-01 2005-09-01
+44    Expansion 2005-10-01 2005-11-01
+45  Stagflation 2005-12-01 2005-12-01
+46    Expansion 2006-01-01 2007-10-01
+47     Recovery 2007-11-01 2007-11-01
+48    Expansion 2007-12-01 2008-02-01
+49  Contraction 2008-03-01 2009-10-01
+50    Expansion 2009-11-01 2020-02-01
+51  Contraction 2020-03-01 2020-05-01
+52     Recovery 2020-06-01 2020-06-01
+53    Expansion 2020-07-01 2020-08-01
+54  Stagflation 2020-09-01 2021-01-01
+55    Expansion 2021-02-01 2021-04-01
+56  Stagflation 2021-05-01 2022-09-01
+57     Recovery 2022-10-01 2022-11-01
+58  Stagflation 2022-12-01 2022-12-01
+59    Expansion 2023-01-01 2025-09-01
+
+
+=== 2. HMM PREDICTED BLOCKS ===
+         Regime      Start        End
+0   Contraction 1960-05-01 1961-05-01
+1     Expansion 1961-06-01 1962-07-01
+2      Recovery 1962-08-01 1963-01-01
+3     Expansion 1963-02-01 1966-11-01
+4      Recovery 1966-12-01 1967-07-01
+5     Expansion 1967-08-01 1969-10-01
+6   Contraction 1969-11-01 1971-03-01
+7     Expansion 1971-04-01 1971-12-01
+8   Stagflation 1972-01-01 1974-10-01
+9   Contraction 1974-11-01 1975-08-01
+10  Stagflation 1975-09-01 1980-03-01
+11  Contraction 1980-04-01 1980-11-01
+12  Stagflation 1980-12-01 1981-09-01
+13  Contraction 1981-10-01 1983-03-01
+14    Expansion 1983-04-01 1983-07-01
+15  Stagflation 1983-08-01 1984-06-01
+16    Expansion 1984-07-01 1986-01-01
+17     Recovery 1986-02-01 1986-07-01
+18    Expansion 1986-08-01 1989-05-01
+19  Contraction 1989-06-01 1991-07-01
+20     Recovery 1991-08-01 1992-11-01
+21    Expansion 1992-12-01 1995-04-01
+22     Recovery 1995-05-01 1995-09-01
+23    Expansion 1995-10-01 2000-06-01
+24     Recovery 2000-07-01 2001-02-01
+25  Contraction 2001-03-01 2002-03-01
+26     Recovery 2002-04-01 2003-10-01
+27    Expansion 2003-11-01 2005-07-01
+28  Contraction 2005-08-01 2005-12-01
+29    Expansion 2006-01-01 2006-08-01
+30     Recovery 2006-09-01 2007-10-01
+31  Contraction 2007-11-01 2009-12-01
+32    Expansion 2010-01-01 2018-08-01
+33     Recovery 2018-09-01 2020-02-01
+34  Contraction 2020-03-01 2020-08-01
+35  Stagflation 2020-09-01 2022-07-01
+36  Contraction 2022-08-01 2023-05-01
+37    Expansion 2023-06-01 2025-09-01
+
+
+=== 3. GROUND TRUTH BLOCKS ===
+   Start Date   End Date       Regime                                 Notes
+0  1960-04-01 1961-02-01  Contraction                        NBER Recession
+1  1961-02-01 1961-12-01     Recovery               Post-recession recovery
+2  1961-12-01 1969-12-01    Expansion                        The 1960s Boom
+3  1969-12-01 1970-11-01  Contraction                        NBER Recession
+4  1970-11-01 1973-11-01     Recovery      Recovery leading into oil crisis
+5  1973-11-01 1975-03-01  Contraction                  Oil Crisis Recession
+6  1975-03-01 1979-12-01  Stagflation                    High Inflation era
+7  1980-01-01 1980-07-01  Contraction                        NBER Recession
+8  1980-07-01 1981-07-01  Stagflation    Brief gap with very high inflation
+9  1981-07-01 1982-11-01  Contraction                     Volcker Recession
+10 1982-11-01 1983-10-01     Recovery                Initial recovery phase
+11 1983-10-01 1990-07-01    Expansion                        The 1980s Boom
+12 1990-07-01 1991-03-01  Contraction                    Gulf War Recession
+13 1991-03-01 1992-06-01     Recovery                      Jobless Recovery
+14 1992-06-01 2001-03-01    Expansion                          Dot Com Boom
+15 2001-03-01 2001-11-01  Contraction                   Dot Com Bust / 9/11
+16 2001-11-01 2002-11-01     Recovery                      Initial recovery
+17 2002-11-01 2007-12-01    Expansion                          Housing Boom
+18 2007-12-01 2009-06-01  Contraction                       Great Recession
+19 2009-06-01 2011-09-01     Recovery  Slow recovery to pre-crisis GDP peak
+20 2011-09-01 2020-02-01    Expansion                  Long 2010s Expansion
+21 2020-02-01 2020-04-01  Contraction                    COVID-19 Recession
+22 2020-04-01 2021-03-01     Recovery                     V-shaped recovery
+23 2021-03-01 2023-12-01  Stagflation            Post-COVID Inflation surge
+24 2023-12-01 2025-12-01    Expansion                 Soft Landing / Growth
+
+
+=== 4. Side-by-Side Performance Analysis ===
+Total Aligned Months: 808
+GMM Overall Accuracy: 76.2%
+HMM Overall Accuracy: 66.2%
+
+Per-Regime Comparison (Recall):
+     Regime  GT Months  GMM Months GMM Acc  HMM Months HMM Acc
+Contraction        103         105   73.8%         165   81.6%
+  Expansion        471         555   96.4%         403   75.4%
+Stagflation        105         128   69.5%         137   73.3%
+   Recovery        129          20   10.1%         103   14.7%

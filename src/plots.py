@@ -667,3 +667,69 @@ def plot_regime_timeline(blocks_df):
     )
     
     return fig
+
+def plot_series_comparison(raw_series, transformed_series, title, description):
+    """
+    Plots raw and transformed data in two subplots.
+    """
+    fig = make_subplots(
+        rows=2, 
+        cols=1, 
+        shared_xaxes=True, 
+        vertical_spacing=0.1,
+        subplot_titles=(f"Raw: {description}", "Transformed (Stationary)")
+    )
+    
+    # Raw Trace
+    fig.add_trace(go.Scatter(
+        x=raw_series.index,
+        y=raw_series,
+        mode='lines',
+        name='Raw',
+        line=dict(color='blue', width=1.5),
+        showlegend=False
+    ), row=1, col=1)
+    
+    # Transformed Trace
+    fig.add_trace(go.Scatter(
+        x=transformed_series.index,
+        y=transformed_series,
+        mode='lines',
+        name='Transformed',
+        line=dict(color='red', width=1.5),
+        showlegend=False
+    ), row=2, col=1)
+    
+    # Add NBER Recession Bands
+    shapes = []
+    # Use the union of both indices to find the date range
+    total_index = raw_series.index.union(transformed_series.index)
+    if not total_index.empty:
+        min_date = total_index.min()
+        max_date = total_index.max()
+        
+        for start, end in NBER_RECESSIONS:
+            if pd.Timestamp(start) <= max_date and pd.Timestamp(end) >= min_date:
+                shapes.append(dict(
+                    type="rect",
+                    xref="x", 
+                    yref="paper",
+                    x0=max(pd.Timestamp(start), min_date),
+                    y0=0,
+                    x1=min(pd.Timestamp(end), max_date),
+                    y1=1,
+                    fillcolor="rgba(128, 128, 128, 0.3)",
+                    layer="below",
+                    line_width=0,
+                ))
+            
+    fig.update_layout(
+        title=title,
+        shapes=shapes,
+        height=400,
+        margin=dict(l=20, r=20, t=50, b=20),
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    
+    return fig
