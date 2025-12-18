@@ -8,6 +8,12 @@ from plotly.subplots import make_subplots
 
 # Hardcoded NBER Recessions
 NBER_RECESSIONS = [
+    ('1929-08-01', '1933-03-01'),
+    ('1937-05-01', '1938-06-01'),
+    ('1945-02-01', '1945-10-01'),
+    ('1948-11-01', '1949-10-01'),
+    ('1953-07-01', '1954-05-01'),
+    ('1957-08-01', '1958-04-01'),
     ('1960-04-01', '1961-02-01'),
     ('1969-12-01', '1970-11-01'),
     ('1973-11-01', '1975-03-01'),
@@ -672,15 +678,39 @@ def plot_series_comparison(raw_series, transformed_series, normalized_series, ti
     """
     Plots raw, transformed, and normalized data in three subplots.
     """
+    def get_stats_str(s):
+        if s.empty:
+            return "N/A"
+        
+        def format_v(v):
+            if v == 0: return "0.00"
+            abs_v = abs(v)
+            if abs_v < 0.001: return f"{v:.2e}"
+            if abs_v < 0.1: return f"{v:.4f}"
+            return f"{v:.2f}"
+
+        stats = {
+            "Mean": s.mean(),
+            "Std": s.std(),
+            "Q1": s.quantile(0.25),
+            "Med": s.median(),
+            "Q3": s.quantile(0.75)
+        }
+        return ", ".join([f"{k}: {format_v(v)}" for k, v in stats.items()])
+
+    raw_stats = get_stats_str(raw_series)
+    trans_stats = get_stats_str(transformed_series)
+    norm_stats = get_stats_str(normalized_series)
+
     fig = make_subplots(
         rows=3, 
         cols=1, 
         shared_xaxes=True, 
-        vertical_spacing=0.08,
+        vertical_spacing=0.1, # Increased slightly to accommodate stats
         subplot_titles=(
-            f"Raw: {description}", 
-            f"Transformed: {formula}", 
-            f"Normalized ({scaler_name})"
+            f"Raw: {description}<br><span style='font-size: 11px; color: gray;'>{raw_stats}</span>", 
+            f"Transformed: {formula}<br><span style='font-size: 11px; color: gray;'>{trans_stats}</span>", 
+            f"Normalized ({scaler_name})<br><span style='font-size: 11px; color: gray;'>{norm_stats}</span>"
         )
     )
     
@@ -727,7 +757,6 @@ def plot_series_comparison(raw_series, transformed_series, normalized_series, ti
         )
     
     # Add NBER Recession Bands
-    shapes = []
     # Use the union of indices to find the date range
     total_index = raw_series.index.union(transformed_series.index).union(normalized_series.index)
     if not total_index.empty:
@@ -735,23 +764,23 @@ def plot_series_comparison(raw_series, transformed_series, normalized_series, ti
         max_date = total_index.max()
         
         for start, end in NBER_RECESSIONS:
-            if pd.Timestamp(start) <= max_date and pd.Timestamp(end) >= min_date:
-                shapes.append(dict(
-                    type="rect",
-                    xref="x", 
-                    yref="paper",
-                    x0=max(pd.Timestamp(start), min_date),
-                    y0=0,
-                    x1=min(pd.Timestamp(end), max_date),
-                    y1=1,
+            s_ts = pd.Timestamp(start)
+            e_ts = pd.Timestamp(end)
+            
+            # Check overlap
+            if s_ts <= max_date and e_ts >= min_date:
+                fig.add_vrect(
+                    x0=max(s_ts, min_date),
+                    x1=min(e_ts, max_date),
                     fillcolor="rgba(128, 128, 128, 0.3)",
                     layer="below",
                     line_width=0,
-                ))
-            
+                    row="all",
+                    col=1
+                )
+
     fig.update_layout(
         title=title,
-        shapes=shapes,
         height=600,
         margin=dict(l=20, r=20, t=50, b=20),
         template="plotly_white",
