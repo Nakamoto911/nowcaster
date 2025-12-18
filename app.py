@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from src.data import DataLoader
 from src.models import RegimeModel
-from src.plots import plot_regime_probabilities, plot_pca_phase_diagram, plot_multi_series_with_recessions, plot_economic_health_index, plot_regime_heatmap, plot_regime_probability_subplots, plot_pca_components
+from src.plots import plot_regime_probabilities, plot_pca_phase_diagram, plot_multi_series_with_recessions, plot_economic_health_index, plot_regime_heatmap, plot_regime_probability_subplots, plot_pca_components, plot_regime_timeline
 
 
 st.set_page_config(layout="wide", page_title="US Economic Regime Nowcaster")
@@ -84,9 +84,26 @@ try:
         # --- Visualizations ---
         #st.header("6. Visualization Requirements")
         
+        # --- NEW ADDITION START ---
+        st.subheader("Regime Stability (Smoothed Timeline)")
+
+        # 1. Calculate Blocks (Smooth out < 3 month flickers)
+        regime_blocks = model.get_regime_blocks(pca_df, min_duration=3)
+
+        # 2. Display the Plot
+        fig_timeline = plot_regime_timeline(regime_blocks)
+        st.plotly_chart(fig_timeline, width="stretch")
+
+        # 3. (Optional) Show the raw table in an expander for inspection
+        with st.expander("View Regime Block Details"):
+            st.dataframe(regime_blocks)
+        # --- NEW ADDITION END ---
+
         st.subheader("Regime Probability Time Series")
         fig_ts = plot_regime_probabilities(regime_probs)
         st.plotly_chart(fig_ts, width="stretch")
+
+
 
         st.subheader("Regime Probabilities (Detailed)")
         fig_subplots = plot_regime_probability_subplots(regime_probs)

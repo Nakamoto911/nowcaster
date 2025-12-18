@@ -625,3 +625,45 @@ def plot_pca_components(pca_df):
     )
     
     return fig
+
+import plotly.express as px
+
+def plot_regime_timeline(blocks_df):
+    """
+    Visualizes the Regime Blocks as a Gantt/Timeline chart.
+    """
+    # Define color map to match existing charts
+    color_map = {
+        "Recovery": "blue",
+        "Expansion": "green",
+        "Stagflation": "orange", # or red
+        "Contraction": "red"     # or purple
+    }
+    
+    # Use global REGIME_COLORS if available, else fallback
+    if 'REGIME_COLORS' in globals():
+        color_map = REGIME_COLORS
+
+    fig = px.timeline(
+        blocks_df, 
+        x_start="Start", 
+        x_end="End", 
+        y="Regime", 
+        color="Regime",
+        color_discrete_map=color_map,
+        hover_data=["Months"],
+        title="Historical Economic Regimes (Smoothed Blocks)"
+    )
+    
+    # Sort Y-axis to make it look logical (optional)
+    fig.update_yaxes(categoryorder="array", categoryarray=["Expansion", "Recovery", "Stagflation", "Contraction"])
+    
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title=None,
+        showlegend=False,
+        height=300, # Keep it compact
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    
+    return fig

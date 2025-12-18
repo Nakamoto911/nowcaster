@@ -136,6 +136,49 @@ class RegimeModel:
         # Initialize result df with 0s for all final labels
         final_res = pd.DataFrame(0.0, index=data.index, columns=self.final_labels)
         
+    def get_regime_blocks(self, pca_df, min_duration=3):
+        """
+        Aggregates monthly regime labels into stable time blocks.
+        Merges short-lived 'flickers' (< min_duration) into the previous regime.
+        """
+        # Work on a copy to avoid affecting the original df
+        df = pca_df[['Regime']].copy().sort_index()
+        df.index.name = 'index' # Ensure index is named 'index' for reset_index
+        
+        # Identify Groups: Create a unique ID for each continuous block
+        df['block_id'] = (df['Regime'] != df['Regime'].shift()).cumsum()
+        
+        # Initial Aggregation
+        blocks = df.reset_index().groupby('block_id').agg(
+            Regime=('Regime', 'first'),
+            Start=('index', 'min'), # note: index is the date
+            End=('index', 'max'),
+            Months=('Regime', 'count')
+        ).reset_index(drop=True)
+        
+        # Smoothing Loop (Hysteresis)
+        clean_blocks = []
+        if blocks.empty: return pd.DataFrame()
+        
+        current = blocks.iloc[0].to_dict()
+        
+        for i in range(1, len(blocks)):
+            next_block = blocks.iloc[i].to_dict()
+            
+            # IF next block is Noise (< min_dur) OR same as current (Merge):
+            if (next_block['Months'] < min_duration) or (next_block['Regime'] == current['Regime']):
+                # Extend current block
+                current['End'] = next_block['End']
+                current['Months'] += next_block['Months']
+            else:
+                # Save current, start new
+                clean_blocks.append(current)
+                current = next_block
+                
+        clean_blocks.append(current)
+        
+        return pd.DataFrame(clean_blocks)
+
     def transform(self, data):
         # PCA
         pca_data = self.pca.transform(data)
