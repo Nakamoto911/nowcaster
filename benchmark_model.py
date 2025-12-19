@@ -34,8 +34,8 @@ def benchmark():
     
     # Load Inflation for Override
     cpi_raw = loader.raw_df['CPIAUCSL']
-    inflation_yoy = cpi_raw.pct_change(12) * 100
-    inflation_yoy = inflation_yoy.reindex(df_model.index).fillna(method='ffill')
+    inflation_yoy = cpi_raw.pct_change(12, fill_method=None) * 100
+    inflation_yoy = inflation_yoy.reindex(df_model.index).ffill()
 
     print("--- Loading Ground Truth ---")
     gt_series = load_ground_truth('ground_truth.csv')

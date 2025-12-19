@@ -33,7 +33,7 @@ class RegimeModel:
         
         # A. Inflation Level
         if inflation_series is not None:
-            infl_aligned = inflation_series.reindex(data.index).fillna(method='ffill').fillna(0)
+            infl_aligned = inflation_series.reindex(data.index).ffill().fillna(0)
             infl_mean = infl_aligned.mean()
             infl_std = infl_aligned.std()
             self.infl_stats = {'mean': infl_mean, 'std': infl_std}
@@ -179,7 +179,7 @@ class RegimeModel:
         # Feature Augmentation
         # A. Inflation
         if inflation_series is not None and self.infl_stats is not None:
-             infl_aligned = inflation_series.reindex(data.index).fillna(method='ffill').fillna(0)
+             infl_aligned = inflation_series.reindex(data.index).ffill().fillna(0)
              infl_z = (infl_aligned - self.infl_stats['mean']) / (self.infl_stats['std'] + 1e-6)
              features_list.append(infl_z.values.reshape(-1, 1))
              
@@ -248,7 +248,7 @@ class RegimeHMM:
         
         # Inflation
         if inflation_series is not None:
-            infl_aligned = inflation_series.reindex(data.index).fillna(method='ffill').fillna(0)
+            infl_aligned = inflation_series.reindex(data.index).ffill().fillna(0)
             infl_mean = infl_aligned.mean()
             infl_std = infl_aligned.std()
             self.infl_stats = {'mean': infl_mean, 'std': infl_std}
@@ -423,7 +423,7 @@ class RegimeHMM:
         features_list = [pca_data]
         
         if inflation_series is not None and self.infl_stats is not None:
-             infl_aligned = inflation_series.reindex(data.index).fillna(method='ffill').fillna(0)
+             infl_aligned = inflation_series.reindex(data.index).ffill().fillna(0)
              infl_z = (infl_aligned - self.infl_stats['mean']) / (self.infl_stats['std'] + 1e-6)
              features_list.append(infl_z.values.reshape(-1, 1))
              

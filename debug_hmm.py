@@ -11,8 +11,8 @@ def debug_hmm():
     
     # Load Inflation
     cpi_raw = loader.raw_df['CPIAUCSL']
-    inflation_yoy = cpi_raw.pct_change(12) * 100
-    inflation_yoy = inflation_yoy.reindex(df.index).fillna(method='ffill')
+    inflation_yoy = cpi_raw.pct_change(12, fill_method=None) * 100
+    inflation_yoy = inflation_yoy.reindex(df.index).ffill()
     
     print("--- Fitting HMM (K=6) ---")
     hmm_model = RegimeHMM(n_components=6)

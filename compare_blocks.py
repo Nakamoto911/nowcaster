@@ -29,8 +29,8 @@ def compare_blocks():
     
     # Calculate Inflation Proxy for 3D Model
     cpi_raw = loader.raw_df['CPIAUCSL']
-    inflation_yoy = cpi_raw.pct_change(12) * 100
-    inflation_yoy = inflation_yoy.reindex(df.index).fillna(method='ffill')
+    inflation_yoy = cpi_raw.pct_change(12, fill_method=None) * 100
+    inflation_yoy = inflation_yoy.reindex(df.index).ffill()
     
     # --- MODEL 1: GMM ---
     print("--- Fitting GMM ---")

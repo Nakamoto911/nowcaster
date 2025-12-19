@@ -84,8 +84,8 @@ try:
         tmp_loader = DataLoader('2025-11-MD.csv', 'FRED-MD_updated_appendix.csv')
         tmp_loader.load_data()
         cpi_raw = tmp_loader.raw_df['CPIAUCSL']
-        inflation_yoy = cpi_raw.pct_change(12) * 100
-        inflation_yoy = inflation_yoy.reindex(df_processed.index).fillna(method='ffill')
+        inflation_yoy = cpi_raw.pct_change(12, fill_method=None) * 100
+        inflation_yoy = inflation_yoy.reindex(df_processed.index).ffill()
 
         model = train_regime_model(df_processed, inflation_yoy, model_type=model_choice)
         regime_probs, pca_df = model.transform(df_processed, inflation_series=inflation_yoy)

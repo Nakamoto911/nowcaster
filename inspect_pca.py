@@ -10,8 +10,8 @@ def inspect_pca():
     
     # Calculate Inflation Proxy (CPI YoY)
     cpi_raw = loader.raw_df['CPIAUCSL']
-    inflation_yoy = cpi_raw.pct_change(12) * 100
-    inflation_yoy = inflation_yoy.reindex(df.index).fillna(method='ffill')
+    inflation_yoy = cpi_raw.pct_change(12, fill_method=None) * 100
+    inflation_yoy = inflation_yoy.reindex(df.index).ffill()
 
     model = RegimeModel()
     model.fit(df, inflation_series=inflation_yoy)
