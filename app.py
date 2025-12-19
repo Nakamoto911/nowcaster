@@ -208,6 +208,109 @@ try:
         
         stats_df = calculate_regime_stats(df_viz, pca_df['Regime'], vars_to_show)
         st.dataframe(stats_df, width=1200)
+
+        # --- NEW: Regime Block Summary Table ---
+        st.divider()
+        st.subheader("Regime Block Summary Table")
+        
+        # Compute transformed data for the requested series if not already available
+        target_transformed = ['S&P 500', 'CPIAUCSL', 'RPI']
+        transformed_data_block = loader.get_feature_series(target_transformed)
+        
+        # Prepare data for the requested raw series
+        raw_series_names = ['UNRATE', 'UMCSENTx', 'FEDFUNDS']
+        raw_data_block = loader.raw_df[raw_series_names].astype(float)
+        
+        block_stats = []
+        for _, block in regime_blocks.iterrows():
+            start_date = block['Start']
+            end_date = block['End']
+            
+            # Mask for the block period (using indices from regime_probs which align with model output)
+            mask = (regime_probs.index >= start_date) & (regime_probs.index <= end_date)
+            
+            if not mask.any():
+                continue
+                
+            # Average weights
+            weights = regime_probs.loc[mask].mean()
+            
+            # Average Raw values
+            raw_avg = raw_data_block.reindex(regime_probs.index).loc[mask].mean()
+            
+            # Average Transformed values
+            trans_avg = transformed_data_block.reindex(regime_probs.index).loc[mask].mean()
+            
+            # Determine Dominant Regime
+            dominant_regime = weights.idxmax()
+            
+            row = {
+                'Start': start_date.strftime('%Y-%m'),
+                'End': end_date.strftime('%Y-%m'),
+                'Regime': dominant_regime,
+                'Dur': block['Months'],
+                'Exp %': weights['Expansion'] * 100,
+                'Rec %': weights['Recovery'] * 100,
+                'Stag %': weights['Stagflation'] * 100,
+                'Cont %': weights['Contraction'] * 100,
+                'UNRATE (Avg)': raw_avg['UNRATE'],
+                'UMC (Avg)': raw_avg['UMCSENTx'],
+                'FED (Avg)': raw_avg['FEDFUNDS'],
+                'S&P (T-Avg)': trans_avg['S&P 500'],
+                'CPI (T-Avg)': trans_avg['CPIAUCSL'],
+                'RPI (T-Avg)': trans_avg['RPI']
+            }
+            block_stats.append(row)
+            
+        summary_df = pd.DataFrame(block_stats)
+        
+        # --- Sorting and Styling ---
+        if not summary_df.empty:
+            # 1. Sort by End date descending
+            summary_df = summary_df.sort_values('End', ascending=False)
+            
+            # 2. Define Styling Function
+            def style_regime_row(row):
+                weights = {
+                    'Expansion': row['Exp %'],
+                    'Recovery': row['Rec %'],
+                    'Stagflation': row['Stag %'],
+                    'Contraction': row['Cont %']
+                }
+                dominant = max(weights, key=weights.get)
+                
+                # Colors consistent with plots.py
+                color_map = {
+                    'Expansion': 'background-color: #90EE90; color: black', # Light Green
+                    'Recovery': 'background-color: #006400; color: white',    # Dark Green
+                    'Stagflation': 'background-color: orange; color: black',  # Orange
+                    'Contraction': 'background-color: red; color: white'      # Red
+                }
+                return [color_map[dominant]] * len(row)
+
+            # 3. Format settings
+            format_dict = {
+                'Exp %': '{:.1f}%',
+                'Rec %': '{:.1f}%',
+                'Stag %': '{:.1f}%',
+                'Cont %': '{:.1f}%',
+                'UNRATE (Avg)': '{:.2f}',
+                'UMC (Avg)': '{:.2f}',
+                'FED (Avg)': '{:.2f}',
+                'S&P (T-Avg)': '{:.3f}',
+                'CPI (T-Avg)': '{:.3f}',
+                'RPI (T-Avg)': '{:.3f}'
+            }
+            
+            # 4. Display stylized dataframe
+            st.dataframe(
+                summary_df.style.format(format_dict).apply(style_regime_row, axis=1), 
+                width=1200, 
+                hide_index=True
+            )
+        else:
+            st.info("No regime blocks identified for the current period.")
+
     
     with tab_diag:
         st.header("Model Diagnostics")
