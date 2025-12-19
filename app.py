@@ -91,7 +91,7 @@ try:
         regime_probs, pca_df = model.transform(df_processed, inflation_series=inflation_yoy)
     
     # Create Tabs
-    tab_main, tab_diag, tab_series = st.tabs(["Dashboard", "Diagnostics", "Series"])
+    tab_main, tab_series, tab_diag = st.tabs(["Dashboard", "Series", "Diagnostics"])
 
     with tab_main:
 
